@@ -1,0 +1,390 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000001 /* ZoneMasterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000001; };
+		A10000002 /* Zone.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000002; };
+		A10000003 /* Profile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000003; };
+		A10000004 /* ZoneLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000004; };
+		A10000005 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000005; };
+		A10000006 /* AccessibilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000006; };
+		A10000007 /* ZoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000007; };
+		A10000008 /* WindowObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000008; };
+		A10000009 /* CaptureFrameManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000009; };
+		A10000010 /* CaptureFrameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010; };
+		A10000011 /* DividerOverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000011; };
+		A10000012 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012; };
+		A10000013 /* ZoneConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000013; };
+		A10000014 /* PresetPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000014; };
+		A10000015 /* CustomZoneEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000015; };
+		A10000016 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000016; };
+		A10000017 /* ShortcutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000017; };
+		A10000018 /* LaunchAtLoginService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000018; };
+		A10000019 /* ZoneEnforcer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000019; };
+		A10000020 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000020; };
+		A10000021 /* ProfileEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000021; };
+		A10000022 /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000001 /* ZoneMasterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneMasterApp.swift; sourceTree = "<group>"; };
+		A20000002 /* Zone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Zone.swift; sourceTree = "<group>"; };
+		A20000003 /* Profile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Profile.swift; sourceTree = "<group>"; };
+		A20000004 /* ZoneLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneLayout.swift; sourceTree = "<group>"; };
+		A20000005 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
+		A20000006 /* AccessibilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityService.swift; sourceTree = "<group>"; };
+		A20000007 /* ZoneEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneEngine.swift; sourceTree = "<group>"; };
+		A20000008 /* WindowObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowObserver.swift; sourceTree = "<group>"; };
+		A20000009 /* CaptureFrameManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureFrameManager.swift; sourceTree = "<group>"; };
+		A20000010 /* CaptureFrameWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureFrameWindow.swift; sourceTree = "<group>"; };
+		A20000011 /* DividerOverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DividerOverlayWindow.swift; sourceTree = "<group>"; };
+		A20000012 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		A20000013 /* ZoneConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneConfigurationView.swift; sourceTree = "<group>"; };
+		A20000014 /* PresetPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetPickerView.swift; sourceTree = "<group>"; };
+		A20000015 /* CustomZoneEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomZoneEditorView.swift; sourceTree = "<group>"; };
+		A20000016 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		A20000017 /* ShortcutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutService.swift; sourceTree = "<group>"; };
+		A20000018 /* LaunchAtLoginService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginService.swift; sourceTree = "<group>"; };
+		A20000019 /* ZoneEnforcer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneEnforcer.swift; sourceTree = "<group>"; };
+		A20000020 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000021 /* ProfileEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorView.swift; sourceTree = "<group>"; };
+		A20000022 /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
+		A30000001 /* ZoneMaster.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZoneMaster.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A30000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A30000003 /* ZoneMaster.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZoneMaster.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A40000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A50000001 = {
+			isa = PBXGroup;
+			children = (
+				A50000002 /* ZoneMaster */,
+				A50000010 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A50000002 /* ZoneMaster */ = {
+			isa = PBXGroup;
+			children = (
+				A20000001 /* ZoneMasterApp.swift */,
+				A30000002 /* Info.plist */,
+				A30000003 /* ZoneMaster.entitlements */,
+				A50000003 /* Models */,
+				A50000004 /* Services */,
+				A50000005 /* Views */,
+				A50000009 /* Resources */,
+			);
+			path = ZoneMaster;
+			sourceTree = "<group>";
+		};
+		A50000003 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000002 /* Zone.swift */,
+				A20000003 /* Profile.swift */,
+				A20000004 /* ZoneLayout.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A50000004 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000005 /* ProfileStore.swift */,
+				A20000006 /* AccessibilityService.swift */,
+				A20000007 /* ZoneEngine.swift */,
+				A20000019 /* ZoneEnforcer.swift */,
+				A20000008 /* WindowObserver.swift */,
+				A20000009 /* CaptureFrameManager.swift */,
+				A20000010 /* CaptureFrameWindow.swift */,
+				A20000011 /* DividerOverlayWindow.swift */,
+				A20000017 /* ShortcutService.swift */,
+				A20000018 /* LaunchAtLoginService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A50000005 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A50000006 /* MenuBar */,
+				A50000007 /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A50000006 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				A20000012 /* MenuBarView.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		A50000007 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				A20000013 /* ZoneConfigurationView.swift */,
+				A20000014 /* PresetPickerView.swift */,
+				A20000015 /* CustomZoneEditorView.swift */,
+				A20000016 /* PreferencesView.swift */,
+				A20000021 /* ProfileEditorView.swift */,
+				A20000022 /* ShortcutRecorderView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		A50000009 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A20000020 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A50000010 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A30000001 /* ZoneMaster.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A60000001 /* ZoneMaster */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000003 /* Build configuration list for PBXNativeTarget "ZoneMaster" */;
+			buildPhases = (
+				A70000001 /* Sources */,
+				A40000001 /* Frameworks */,
+				A70000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ZoneMaster;
+			productName = ZoneMaster;
+			productReference = A30000001 /* ZoneMaster.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A90000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A60000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A80000001 /* Build configuration list for PBXProject "ZoneMaster" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A50000001;
+			productRefGroup = A50000010 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A60000001 /* ZoneMaster */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A70000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000020 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A70000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000001 /* ZoneMasterApp.swift in Sources */,
+				A10000002 /* Zone.swift in Sources */,
+				A10000003 /* Profile.swift in Sources */,
+				A10000004 /* ZoneLayout.swift in Sources */,
+				A10000005 /* ProfileStore.swift in Sources */,
+				A10000006 /* AccessibilityService.swift in Sources */,
+				A10000007 /* ZoneEngine.swift in Sources */,
+				A10000008 /* WindowObserver.swift in Sources */,
+				A10000009 /* CaptureFrameManager.swift in Sources */,
+				A10000010 /* CaptureFrameWindow.swift in Sources */,
+				A10000011 /* DividerOverlayWindow.swift in Sources */,
+				A10000012 /* MenuBarView.swift in Sources */,
+				A10000013 /* ZoneConfigurationView.swift in Sources */,
+				A10000014 /* PresetPickerView.swift in Sources */,
+				A10000015 /* CustomZoneEditorView.swift in Sources */,
+				A10000016 /* PreferencesView.swift in Sources */,
+				A10000017 /* ShortcutService.swift in Sources */,
+				A10000018 /* LaunchAtLoginService.swift in Sources */,
+				A10000019 /* ZoneEnforcer.swift in Sources */,
+				A10000021 /* ProfileEditorView.swift in Sources */,
+				A10000022 /* ShortcutRecorderView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A80000010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A80000011 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		A80000020 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ZoneMaster/ZoneMaster.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ZoneMaster/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zonemaster.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		A80000021 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ZoneMaster/ZoneMaster.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ZoneMaster/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zonemaster.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A80000001 /* Build configuration list for PBXProject "ZoneMaster" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80000010 /* Debug */,
+				A80000011 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000003 /* Build configuration list for PBXNativeTarget "ZoneMaster" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80000020 /* Debug */,
+				A80000021 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = A90000001 /* Project object */;
+}
