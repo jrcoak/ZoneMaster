@@ -17,7 +17,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>13.0</string>
+	<string>26.0</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>ZoneMaster needs Accessibility access to manage window positions and sizes within your defined screen zones.</string>
 </dict>
