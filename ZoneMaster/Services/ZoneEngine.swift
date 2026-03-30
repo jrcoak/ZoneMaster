@@ -2,12 +2,13 @@ import AppKit
 import Combine
 
 /// Central coordinator that ties together zone enforcement, window observation,
-/// capture frames, and divider overlays. Owned by the app and driven by ProfileStore changes.
+/// and divider overlays. Owned by the app and driven by ProfileStore changes.
 final class ZoneEngine: ObservableObject {
     @Published var isActive: Bool = false
 
     private let enforcer: AccessibilityZoneEnforcer
     private let windowObserver: WindowObserver
+    private var dividerOverlay: DividerOverlayWindow?
     private var cancellables = Set<AnyCancellable>()
 
     /// The screen zones are applied to (primary screen for v1)
@@ -23,7 +24,6 @@ final class ZoneEngine: ObservableObject {
     /// Start zone enforcement with the given profile
     func activate(with profile: Profile, stickyEdgesEnabled: Bool, stickyEdgeThreshold: Double) {
         guard AccessibilityService.isAccessibilityEnabled() else {
-            // Prompt for permissions
             _ = AccessibilityService.isAccessibilityEnabled(prompt: true)
             return
         }
@@ -32,19 +32,30 @@ final class ZoneEngine: ObservableObject {
         enforcer.stickyEdgeThreshold = CGFloat(stickyEdgeThreshold)
         enforcer.startEnforcing(zones: profile.zones, on: targetScreen)
         windowObserver.startObserving()
+
+        if profile.showDividers {
+            showDividers(for: profile.zones)
+        }
+
         isActive = true
+        print("ZoneMaster: Activated with \(profile.zones.count) zones (profile: \(profile.name))")
     }
 
     /// Stop all zone enforcement
     func deactivate() {
         enforcer.stopEnforcing()
         windowObserver.stopObserving()
+        hideDividers()
         isActive = false
+        print("ZoneMaster: Deactivated")
     }
 
     /// Update zones without restarting (e.g., after profile switch or zone edit)
     func updateZones(_ zones: [Zone]) {
         enforcer.updateZones(zones, on: targetScreen)
+        if isActive {
+            showDividers(for: zones)
+        }
     }
 
     /// Move the currently focused window to a specific zone
@@ -62,7 +73,6 @@ final class ZoneEngine: ObservableObject {
         let screen = targetScreen
         let windowCenter = CGPoint(x: windowFrame.midX, y: windowFrame.midY)
 
-        // Find current zone
         let currentIndex = zones.firstIndex { zone in
             zone.screenRect(for: screen.frame).contains(windowCenter)
         } ?? 0
@@ -93,5 +103,20 @@ final class ZoneEngine: ObservableObject {
     func updateStickyEdges(enabled: Bool, threshold: Double) {
         enforcer.stickyEdgesEnabled = enabled
         enforcer.stickyEdgeThreshold = CGFloat(threshold)
+    }
+
+    // MARK: - Divider Overlay
+
+    func showDividers(for zones: [Zone]) {
+        let screen = targetScreen
+        if dividerOverlay == nil {
+            dividerOverlay = DividerOverlayWindow(screen: screen)
+        }
+        dividerOverlay?.updateDividers(zones: zones, screen: screen)
+        dividerOverlay?.showDividers()
+    }
+
+    func hideDividers() {
+        dividerOverlay?.hideDividers()
     }
 }

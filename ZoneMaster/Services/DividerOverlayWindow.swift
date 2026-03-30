@@ -48,8 +48,8 @@ final class DividerOverlayView: NSView {
     var zones: [Zone] = []
     var screenFrame: CGRect = .zero
 
-    private let dividerColor = NSColor(white: 0.5, alpha: 0.3)
-    private let dividerWidth: CGFloat = 1.0
+    private let dividerColor = NSColor(white: 0.4, alpha: 0.5)
+    private let dividerWidth: CGFloat = 2.0
 
     override func draw(_ dirtyRect: NSRect) {
         guard !zones.isEmpty else { return }

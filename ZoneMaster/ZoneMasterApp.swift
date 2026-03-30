@@ -1,20 +1,113 @@
 import SwiftUI
 
+/// App delegate handles bootstrapping all services on launch.
+/// SwiftUI MenuBarExtra doesn't have a reliable onAppear, so we use
+/// NSApplicationDelegate.applicationDidFinishLaunching instead.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let profileStore = ProfileStore()
+    let zoneEngine = ZoneEngine()
+    let shortcutService = ShortcutService()
+    let captureFrameManager = CaptureFrameManager()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        print("ZoneMaster: Starting up...")
+
+        // Auto-activate zones if they were enabled (default: true)
+        if profileStore.appState.zonesEnabled {
+            let profile = profileStore.activeProfile
+            zoneEngine.activate(
+                with: profile,
+                stickyEdgesEnabled: profileStore.appState.stickyEdgesEnabled,
+                stickyEdgeThreshold: profileStore.appState.stickyEdgeThreshold
+            )
+
+            // Sync capture frames for zones that have them enabled
+            captureFrameManager.syncFrames(
+                zones: profile.zones,
+                screen: zoneEngine.targetScreen
+            )
+
+            print("ZoneMaster: Zones activated with profile '\(profile.name)' (\(profile.zones.count) zones)")
+        }
+
+        // Start global keyboard shortcuts
+        connectShortcuts()
+        shortcutService.startListening()
+        print("ZoneMaster: Keyboard shortcuts registered")
+
+        // Set up launch at login based on saved preference
+        LaunchAtLoginService.setEnabled(profileStore.appState.launchAtLogin)
+    }
+
+    /// Wire shortcut callbacks to zone engine and profile store actions
+    private func connectShortcuts() {
+        shortcutService.bindings = profileStore.shortcutBindings
+
+        shortcutService.onMoveToNextZone = { [weak self] in
+            guard let self, self.zoneEngine.isActive else { return }
+            self.zoneEngine.moveFocusedWindowToNextZone(zones: self.profileStore.activeProfile.zones)
+        }
+
+        shortcutService.onMoveToPreviousZone = { [weak self] in
+            guard let self, self.zoneEngine.isActive else { return }
+            self.zoneEngine.moveFocusedWindowToPreviousZone(zones: self.profileStore.activeProfile.zones)
+        }
+
+        shortcutService.onMoveToZone = { [weak self] index in
+            guard let self, self.zoneEngine.isActive else { return }
+            let zones = self.profileStore.activeProfile.zones
+            guard index < zones.count else { return }
+            self.zoneEngine.moveFocusedWindow(to: zones[index])
+        }
+
+        shortcutService.onToggleZones = { [weak self] in
+            guard let self else { return }
+            self.profileStore.toggleZonesEnabled()
+            if self.profileStore.appState.zonesEnabled {
+                let profile = self.profileStore.activeProfile
+                self.zoneEngine.activate(
+                    with: profile,
+                    stickyEdgesEnabled: self.profileStore.appState.stickyEdgesEnabled,
+                    stickyEdgeThreshold: self.profileStore.appState.stickyEdgeThreshold
+                )
+                self.captureFrameManager.syncFrames(
+                    zones: profile.zones,
+                    screen: self.zoneEngine.targetScreen
+                )
+            } else {
+                self.zoneEngine.deactivate()
+                self.captureFrameManager.hideAll()
+            }
+        }
+
+        shortcutService.onNextProfile = { [weak self] in
+            guard let self else { return }
+            self.profileStore.switchToNextProfile()
+            let profile = self.profileStore.activeProfile
+            if self.zoneEngine.isActive {
+                self.zoneEngine.updateZones(profile.zones)
+                self.captureFrameManager.syncFrames(
+                    zones: profile.zones,
+                    screen: self.zoneEngine.targetScreen
+                )
+            }
+        }
+    }
+}
+
 @main
 struct ZoneMasterApp: App {
-    @StateObject private var profileStore = ProfileStore()
-    @StateObject private var zoneEngine = ZoneEngine()
-    @StateObject private var shortcutService = ShortcutService()
-    @StateObject private var captureFrameManager = CaptureFrameManager()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     @State private var settingsWindow: NSWindow?
+    @State private var preferencesWindow: NSWindow?
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarView(
-                profileStore: profileStore,
-                zoneEngine: zoneEngine,
-                captureFrameManager: captureFrameManager,
+                profileStore: appDelegate.profileStore,
+                zoneEngine: appDelegate.zoneEngine,
+                captureFrameManager: appDelegate.captureFrameManager,
                 onOpenSettings: openSettings,
                 onOpenPreferences: openPreferences
             )
@@ -25,15 +118,15 @@ struct ZoneMasterApp: App {
     }
 
     private func openSettings() {
-        if let window = settingsWindow {
+        if let window = settingsWindow, window.isVisible {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
         let view = ZoneConfigurationView(
-            profileStore: profileStore,
-            zoneEngine: zoneEngine
+            profileStore: appDelegate.profileStore,
+            zoneEngine: appDelegate.zoneEngine
         )
 
         let hostingController = NSHostingController(rootView: view)
@@ -49,9 +142,15 @@ struct ZoneMasterApp: App {
     }
 
     private func openPreferences() {
+        if let window = preferencesWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
         let view = PreferencesView(
-            shortcutService: shortcutService,
-            zoneEngine: zoneEngine
+            shortcutService: appDelegate.shortcutService,
+            zoneEngine: appDelegate.zoneEngine
         )
 
         let hostingController = NSHostingController(rootView: view)
@@ -62,5 +161,7 @@ struct ZoneMasterApp: App {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        self.preferencesWindow = window
     }
 }
