@@ -9,6 +9,8 @@ struct PreferencesView: View {
     @State private var stickyEdgesEnabled: Bool = true
     @State private var stickyEdgeThreshold: Double = 20.0
     @State private var bindings: ShortcutBindings = .makeDefault()
+    @State private var accessibilityGranted: Bool = AccessibilityService.isAccessibilityEnabled()
+    @State private var accessibilityCheckTimer: Timer?
 
     var body: some View {
         TabView {
@@ -61,7 +63,7 @@ struct PreferencesView: View {
 
             Section("Accessibility") {
                 HStack {
-                    if AccessibilityService.isAccessibilityEnabled() {
+                    if accessibilityGranted {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                         Text("Accessibility access granted")
@@ -74,6 +76,22 @@ struct PreferencesView: View {
                             _ = AccessibilityService.isAccessibilityEnabled(prompt: true)
                         }
                     }
+                }
+                .onAppear {
+                    // Poll for accessibility status changes since macOS
+                    // doesn't notify apps when permissions are granted
+                    accessibilityCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                        let granted = AccessibilityService.isAccessibilityEnabled()
+                        if granted != accessibilityGranted {
+                            DispatchQueue.main.async {
+                                accessibilityGranted = granted
+                            }
+                        }
+                    }
+                }
+                .onDisappear {
+                    accessibilityCheckTimer?.invalidate()
+                    accessibilityCheckTimer = nil
                 }
             }
 
