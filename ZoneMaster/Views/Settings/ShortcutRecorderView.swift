@@ -39,7 +39,7 @@ struct ShortcutRecorderView: View {
 
                 shortcut = KeyboardShortcut(
                     keyCode: 0, // Will be resolved at registration time
-                    modifiers: keyPress.modifiers.rawValue,
+                    modifiers: UInt(keyPress.modifiers.rawValue),
                     displayString: display
                 )
 
