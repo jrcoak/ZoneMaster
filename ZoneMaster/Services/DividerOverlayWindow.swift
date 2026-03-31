@@ -29,9 +29,8 @@ final class DividerOverlayWindow: NSWindow {
     /// Update the divider positions based on current zones
     func updateDividers(zones: [Zone], screen: NSScreen) {
         dividerView.zones = zones
-        dividerView.screenFrame = screen.frame
-        dividerView.needsDisplay = true
         self.setFrame(screen.frame, display: true)
+        dividerView.needsDisplay = true
     }
 
     func showDividers() {
@@ -44,9 +43,10 @@ final class DividerOverlayWindow: NSWindow {
 }
 
 /// Custom view that draws thin semi-transparent lines at zone boundaries.
+/// Uses normalized zone coordinates directly, converting to view-local pixels.
+/// The view fills the entire screen, so (0,0) is the screen's bottom-left corner.
 final class DividerOverlayView: NSView {
     var zones: [Zone] = []
-    var screenFrame: CGRect = .zero
 
     private let dividerColor = NSColor(white: 0.4, alpha: 0.5)
     private let dividerWidth: CGFloat = 2.0
@@ -56,40 +56,46 @@ final class DividerOverlayView: NSView {
 
         dividerColor.setStroke()
 
-        // Collect unique interior edges
-        var verticalEdges = Set<CGFloat>()
-        var horizontalEdges = Set<CGFloat>()
+        // Collect unique interior edges from normalized coordinates.
+        // Values at 0.0 and 1.0 are screen edges — skip them.
+        var verticalPositions = Set<CGFloat>()
+        var horizontalPositions = Set<CGFloat>()
 
         for zone in zones {
-            let rect = zone.screenRect(for: screenFrame)
-
-            // Right edge (skip if it's the screen edge)
-            let rightEdge = rect.maxX
-            if abs(rightEdge - screenFrame.maxX) > 2 {
-                verticalEdges.insert(rightEdge - screenFrame.origin.x)
+            let r = zone.normalizedRect
+            // Right edge of this zone
+            let rightNorm = r.x + r.width
+            if rightNorm > 0.01 && rightNorm < 0.99 {
+                verticalPositions.insert(rightNorm)
             }
-
-            // Bottom edge (skip if it's the screen edge)
-            let bottomEdge = rect.maxY
-            if abs(bottomEdge - screenFrame.maxY) > 2 {
-                horizontalEdges.insert(bottomEdge - screenFrame.origin.y)
+            // Top edge of this zone (in normalized space, y increases downward
+            // but NSView y increases upward — we'll flip when drawing)
+            let bottomNorm = r.y + r.height
+            if bottomNorm > 0.01 && bottomNorm < 0.99 {
+                horizontalPositions.insert(bottomNorm)
             }
         }
 
-        // Draw vertical dividers
-        for x in verticalEdges {
+        let w = bounds.width
+        let h = bounds.height
+
+        // Draw vertical dividers (full height of screen)
+        for normX in verticalPositions {
+            let x = normX * w
             let path = NSBezierPath()
             path.move(to: NSPoint(x: x, y: 0))
-            path.line(to: NSPoint(x: x, y: bounds.height))
+            path.line(to: NSPoint(x: x, y: h))
             path.lineWidth = dividerWidth
             path.stroke()
         }
 
-        // Draw horizontal dividers
-        for y in horizontalEdges {
+        // Draw horizontal dividers (full width of screen)
+        // Normalized y=0 is top of screen, but NSView y=0 is bottom — flip
+        for normY in horizontalPositions {
+            let y = h - (normY * h)
             let path = NSBezierPath()
             path.move(to: NSPoint(x: 0, y: y))
-            path.line(to: NSPoint(x: bounds.width, y: y))
+            path.line(to: NSPoint(x: w, y: y))
             path.lineWidth = dividerWidth
             path.stroke()
         }

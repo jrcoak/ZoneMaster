@@ -7,7 +7,6 @@ final class ZoneEngine: ObservableObject {
     @Published var isActive: Bool = false
 
     private let enforcer: AccessibilityZoneEnforcer
-    private let windowObserver: WindowObserver
     private var dividerOverlay: DividerOverlayWindow?
     private var cancellables = Set<AnyCancellable>()
 
@@ -18,7 +17,6 @@ final class ZoneEngine: ObservableObject {
 
     init() {
         self.enforcer = AccessibilityZoneEnforcer()
-        self.windowObserver = WindowObserver()
     }
 
     /// Start zone enforcement with the given profile
@@ -31,7 +29,6 @@ final class ZoneEngine: ObservableObject {
         enforcer.stickyEdgesEnabled = stickyEdgesEnabled
         enforcer.stickyEdgeThreshold = CGFloat(stickyEdgeThreshold)
         enforcer.startEnforcing(zones: profile.zones, on: targetScreen)
-        windowObserver.startObserving()
 
         if profile.showDividers {
             showDividers(for: profile.zones)
@@ -44,7 +41,6 @@ final class ZoneEngine: ObservableObject {
     /// Stop all zone enforcement
     func deactivate() {
         enforcer.stopEnforcing()
-        windowObserver.stopObserving()
         hideDividers()
         isActive = false
         print("ZoneMaster: Deactivated")
