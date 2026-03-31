@@ -96,7 +96,7 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
         let refcon = Unmanaged.passUnretained(self).toOpaque()
 
         var observer: AXObserver?
-        let result = AXObserverCreate(pid, axCallback, &observer)
+        let result = AXObserverCreate(pid, Self.axObserverCallback, &observer)
         guard result == .success, let observer = observer else { return }
 
         let appElement = AccessibilityService.applicationElement(pid: pid)
@@ -122,15 +122,17 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
 
     // MARK: - AX Callback
 
-    /// Called by the AXObserver when a window event fires.
-    /// This is a C function pointer — uses refcon to get back to the enforcer instance.
-    private static let axCallback: AXObserverCallback = { _, element, notification, refcon in
-        guard let refcon = refcon else { return }
-        let enforcer = Unmanaged<AccessibilityZoneEnforcer>.fromOpaque(refcon).takeUnretainedValue()
-        let notifString = notification as String
+    /// The C function pointer for AXObserverCreate. Defined as a static property
+    /// returning the function reference so it can be passed to the C API.
+    static var axObserverCallback: AXObserverCallback {
+        return { _, element, notification, refcon in
+            guard let refcon = refcon else { return }
+            let enforcer = Unmanaged<AccessibilityZoneEnforcer>.fromOpaque(refcon).takeUnretainedValue()
+            let notifString = notification as String
 
-        if notifString == kAXWindowResizedNotification as String {
-            enforcer.handleWindowResized(element)
+            if notifString == kAXWindowResizedNotification as String {
+                enforcer.handleWindowResized(element)
+            }
         }
     }
 
