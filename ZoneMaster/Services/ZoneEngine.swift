@@ -19,23 +19,32 @@ final class ZoneEngine: ObservableObject {
         self.enforcer = AccessibilityZoneEnforcer()
     }
 
-    /// Start zone enforcement with the given profile
+    /// Start zone enforcement with the given profile.
+    /// Dividers and state are always activated. Window constraining requires
+    /// Accessibility permissions — if not yet granted, the enforcer will start
+    /// but AX calls will silently fail until permissions are granted and the
+    /// app is restarted (or re-activated via the retry timer in AppDelegate).
     func activate(with profile: Profile, stickyEdgesEnabled: Bool, stickyEdgeThreshold: Double) {
-        guard AccessibilityService.isAccessibilityEnabled() else {
+        let hasAccess = AccessibilityService.isAccessibilityEnabled()
+        if !hasAccess {
+            // Prompt for permissions but don't bail — still show dividers
             _ = AccessibilityService.isAccessibilityEnabled(prompt: true)
-            return
+            print("ZoneMaster: Accessibility not yet granted — dividers will show but window constraining won't work until permissions are granted")
         }
 
         enforcer.stickyEdgesEnabled = stickyEdgesEnabled
         enforcer.stickyEdgeThreshold = CGFloat(stickyEdgeThreshold)
-        enforcer.startEnforcing(zones: profile.zones, on: targetScreen)
+
+        if hasAccess {
+            enforcer.startEnforcing(zones: profile.zones, on: targetScreen)
+        }
 
         if profile.showDividers {
             showDividers(for: profile.zones)
         }
 
         isActive = true
-        print("ZoneMaster: Activated with \(profile.zones.count) zones (profile: \(profile.name))")
+        print("ZoneMaster: Activated with \(profile.zones.count) zones (profile: \(profile.name), accessibility: \(hasAccess ? "granted" : "pending"))")
     }
 
     /// Stop all zone enforcement
@@ -93,6 +102,19 @@ final class ZoneEngine: ObservableObject {
 
         let prevIndex = currentIndex == 0 ? zones.count - 1 : currentIndex - 1
         moveFocusedWindow(to: zones[prevIndex])
+    }
+
+    /// Try to start the enforcer if accessibility was granted after initial activation.
+    /// Called by the AppDelegate retry timer.
+    func startEnforcerIfNeeded(zones: [Zone]) {
+        guard isActive, AccessibilityService.isAccessibilityEnabled() else { return }
+        enforcer.startEnforcing(zones: zones, on: targetScreen)
+        print("ZoneMaster: Accessibility granted — enforcer started")
+    }
+
+    /// Whether the enforcer is actually running (has accessibility)
+    var isEnforcerRunning: Bool {
+        isActive && AccessibilityService.isAccessibilityEnabled()
     }
 
     /// Update sticky edge settings

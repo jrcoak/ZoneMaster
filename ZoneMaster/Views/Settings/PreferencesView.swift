@@ -62,29 +62,38 @@ struct PreferencesView: View {
             }
 
             Section("Accessibility") {
-                HStack {
-                    if accessibilityGranted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Accessibility access granted")
-                    } else {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text("Accessibility access required")
-                        Spacer()
-                        Button("Grant Access") {
-                            _ = AccessibilityService.isAccessibilityEnabled(prompt: true)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        if accessibilityGranted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Accessibility access granted")
+                        } else {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Accessibility access required")
+                            Spacer()
+                            Button("Open System Settings") {
+                                // Open the Accessibility pane directly
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
                         }
+                    }
+                    if !accessibilityGranted {
+                        Text("After granting access in System Settings, ZoneMaster will detect it automatically within a few seconds. Divider lines will show immediately; window management starts once access is granted.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
                 .onAppear {
-                    // Poll for accessibility status changes since macOS
-                    // doesn't notify apps when permissions are granted
-                    accessibilityCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                    accessibilityGranted = AccessibilityService.isAccessibilityEnabled()
+                    accessibilityCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
                         let granted = AccessibilityService.isAccessibilityEnabled()
-                        if granted != accessibilityGranted {
+                        if granted != self.accessibilityGranted {
                             DispatchQueue.main.async {
-                                accessibilityGranted = granted
+                                self.accessibilityGranted = granted
                             }
                         }
                     }

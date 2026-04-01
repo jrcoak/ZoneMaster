@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let shortcutService = ShortcutService()
     let captureFrameManager = CaptureFrameManager()
 
+    private var accessibilityRetryTimer: Timer?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("ZoneMaster: Starting up...")
 
@@ -37,6 +39,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Set up launch at login based on saved preference
         LaunchAtLoginService.setEnabled(profileStore.appState.launchAtLogin)
+
+        // If accessibility isn't granted yet, poll until it is and then
+        // start the enforcer. macOS doesn't notify apps when permissions change.
+        if !AccessibilityService.isAccessibilityEnabled() {
+            print("ZoneMaster: Waiting for Accessibility permissions...")
+            accessibilityRetryTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
+                guard let self else { timer.invalidate(); return }
+                if AccessibilityService.isAccessibilityEnabled() {
+                    print("ZoneMaster: Accessibility permissions granted!")
+                    timer.invalidate()
+                    self.accessibilityRetryTimer = nil
+
+                    // Start the enforcer now that we have permissions
+                    let profile = self.profileStore.activeProfile
+                    if self.profileStore.appState.zonesEnabled {
+                        self.zoneEngine.startEnforcerIfNeeded(zones: profile.zones)
+                    }
+
+                    // Restart shortcut listener (CGEvent tap also needs accessibility)
+                    self.shortcutService.stopListening()
+                    self.shortcutService.startListening()
+                }
+            }
+        }
     }
 
     /// Wire shortcut callbacks to zone engine and profile store actions
