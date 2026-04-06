@@ -9,12 +9,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let shortcutService = ShortcutService()
     let captureFrameManager = CaptureFrameManager()
 
-    private var accessibilityRetryTimer: Timer?
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         print("ZoneMaster: Starting up...")
 
-        // Auto-activate zones if they were enabled (default: true)
+        // Always activate — don't gate on accessibility check.
+        // AXIsProcessTrustedWithOptions returns stale results for re-exported apps.
+        // The enforcer will just try AX calls; they silently fail if not permitted.
         if profileStore.appState.zonesEnabled {
             let profile = profileStore.activeProfile
             zoneEngine.activate(
@@ -23,7 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 stickyEdgeThreshold: profileStore.appState.stickyEdgeThreshold
             )
 
-            // Sync capture frames for zones that have them enabled
             captureFrameManager.syncFrames(
                 zones: profile.zones,
                 screen: zoneEngine.targetScreen
@@ -40,28 +39,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Set up launch at login based on saved preference
         LaunchAtLoginService.setEnabled(profileStore.appState.launchAtLogin)
 
-        // If accessibility isn't granted yet, poll until it is and then
-        // start the enforcer. macOS doesn't notify apps when permissions change.
-        if !AccessibilityService.isAccessibilityEnabled() {
-            print("ZoneMaster: Waiting for Accessibility permissions...")
-            accessibilityRetryTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] timer in
-                guard let self else { timer.invalidate(); return }
-                if AccessibilityService.isAccessibilityEnabled() {
-                    print("ZoneMaster: Accessibility permissions granted!")
-                    timer.invalidate()
-                    self.accessibilityRetryTimer = nil
+        // Do a live test: try to read a window to verify AX actually works
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.verifyAccessibility()
+        }
+    }
 
-                    // Start the enforcer now that we have permissions
-                    let profile = self.profileStore.activeProfile
-                    if self.profileStore.appState.zonesEnabled {
-                        self.zoneEngine.startEnforcerIfNeeded(zones: profile.zones)
-                    }
-
-                    // Restart shortcut listener (CGEvent tap also needs accessibility)
-                    self.shortcutService.stopListening()
-                    self.shortcutService.startListening()
-                }
-            }
+    /// Actually test if accessibility works by trying to read a window.
+    /// More reliable than AXIsProcessTrustedWithOptions.
+    private func verifyAccessibility() {
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+            print("ZoneMaster: No frontmost app to test accessibility")
+            return
+        }
+        let appElement = AccessibilityService.applicationElement(pid: frontApp.processIdentifier)
+        let windows = AccessibilityService.getWindows(for: appElement)
+        if windows.isEmpty {
+            print("ZoneMaster: ⚠️ Could not read windows — accessibility may not be granted. Check System Settings > Privacy & Security > Accessibility")
+        } else {
+            print("ZoneMaster: ✅ Accessibility working — can see \(windows.count) window(s) from \(frontApp.localizedName ?? "unknown")")
         }
     }
 

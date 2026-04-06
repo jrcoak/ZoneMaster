@@ -9,7 +9,7 @@ struct PreferencesView: View {
     @State private var stickyEdgesEnabled: Bool = true
     @State private var stickyEdgeThreshold: Double = 20.0
     @State private var bindings: ShortcutBindings = .makeDefault()
-    @State private var accessibilityGranted: Bool = AccessibilityService.isAccessibilityEnabled()
+    @State private var accessibilityWorking: Bool = false
     @State private var accessibilityCheckTimer: Timer?
 
     var body: some View {
@@ -64,37 +64,34 @@ struct PreferencesView: View {
             Section("Accessibility") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        if accessibilityGranted {
+                        if accessibilityWorking {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
-                            Text("Accessibility access granted")
+                            Text("Accessibility working")
                         } else {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
-                            Text("Accessibility access required")
+                            Text("Accessibility not working")
                             Spacer()
                             Button("Open System Settings") {
-                                // Open the Accessibility pane directly
                                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                                     NSWorkspace.shared.open(url)
                                 }
                             }
                         }
                     }
-                    if !accessibilityGranted {
-                        Text("After granting access in System Settings, ZoneMaster will detect it automatically within a few seconds. Divider lines will show immediately; window management starts once access is granted.")
+                    if !accessibilityWorking {
+                        Text("ZoneMaster needs Accessibility access to manage windows. Add it in System Settings → Privacy & Security → Accessibility. If already added, try removing and re-adding it.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
                 .onAppear {
-                    accessibilityGranted = AccessibilityService.isAccessibilityEnabled()
-                    accessibilityCheckTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                        let granted = AccessibilityService.isAccessibilityEnabled()
-                        if granted != self.accessibilityGranted {
-                            DispatchQueue.main.async {
-                                self.accessibilityGranted = granted
-                            }
+                    testAccessibility()
+                    // Poll with a live test — actually try to read windows
+                    accessibilityCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+                        DispatchQueue.main.async {
+                            self.testAccessibility()
                         }
                     }
                 }
@@ -170,5 +167,19 @@ struct PreferencesView: View {
             }
         }
         .padding()
+    }
+
+    // MARK: - Accessibility Test
+
+    /// Actually try to read windows from the frontmost app.
+    /// More reliable than AXIsProcessTrustedWithOptions which can return stale results.
+    private func testAccessibility() {
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+            accessibilityWorking = false
+            return
+        }
+        let appElement = AccessibilityService.applicationElement(pid: frontApp.processIdentifier)
+        let windows = AccessibilityService.getWindows(for: appElement)
+        accessibilityWorking = !windows.isEmpty
     }
 }
