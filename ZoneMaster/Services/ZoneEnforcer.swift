@@ -1,8 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// Protocol abstracting zone enforcement. Currently implemented via Accessibility APIs.
-/// Designed to be swappable for a virtual display driver in the future.
+/// Protocol abstracting zone enforcement.
 protocol ZoneEnforcerProtocol {
     func startEnforcing(zones: [Zone], on screen: NSScreen)
     func stopEnforcing()
@@ -10,20 +9,31 @@ protocol ZoneEnforcerProtocol {
     func moveFocusedWindow(to zone: Zone, on screen: NSScreen)
 }
 
-/// Accessibility-based zone enforcer. Uses AXObserver to watch for window resize
-/// events (which fire on maximize/zoom) and a lightweight poll for sticky edges.
-///
-/// Key coordinate distinction:
-/// - `screen.visibleFrame` for window constraining (excludes menu bar + Dock)
-/// - `screen.frame` for zone hit-testing and divider overlay (full screen)
+// MARK: - Free function for AXObserver C callback
+// Must be a top-level function (not a closure or method) to be used as a C function pointer.
+private func zoneEnforcerAXCallback(
+    _ observer: AXObserver,
+    _ element: AXUIElement,
+    _ notification: CFString,
+    _ refcon: UnsafeMutableRawPointer?
+) {
+    guard let refcon = refcon else { return }
+    let enforcer = Unmanaged<AccessibilityZoneEnforcer>.fromOpaque(refcon).takeUnretainedValue()
+    enforcer.handleAXNotification(element: element, notification: notification as String)
+}
+
+/// Accessibility-based zone enforcer. Polls all windows to detect maximize events
+/// and enforce sticky edges. Uses a simple, reliable polling approach rather than
+/// AXObserver (which has issues with C function pointer bridging and unstable
+/// AXUIElement references).
 final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
     private var isEnforcing = false
     private var currentZones: [Zone] = []
     private var currentScreen: NSScreen?
-    private var observers: [pid_t: AXObserver] = [:]
     private var pollTimer: Timer?
+    private var observers: [pid_t: AXObserver] = [:]
 
-    // Track last known window frames for maximize detection and sticky edges
+    // Track window frames by PID + window title (stable across AX calls)
     private var lastWindowFrames: [String: CGRect] = [:]
 
     var stickyEdgesEnabled: Bool = true
@@ -36,7 +46,9 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
         currentScreen = screen
         isEnforcing = true
 
-        // Observe all running apps for window resize/move events
+        print("ZoneMaster: Enforcer starting with \(zones.count) zones")
+
+        // Set up AX observers for all running apps
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
             observeApp(pid: app.processIdentifier)
         }
@@ -49,10 +61,12 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
             object: nil
         )
 
-        // Poll at 200ms for sticky edges and as a fallback for missed events
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            self?.pollForStickyEdges()
+        // Also poll as a fallback — catches anything the observers miss
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
+            self?.pollAllWindows()
         }
+
+        print("ZoneMaster: Enforcer started, observing \(observers.count) apps")
     }
 
     func stopEnforcing() {
@@ -61,8 +75,8 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
         pollTimer = nil
         observers.removeAll()
         lastWindowFrames.removeAll()
-
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        print("ZoneMaster: Enforcer stopped")
     }
 
     func updateZones(_ zones: [Zone], on screen: NSScreen) {
@@ -79,7 +93,7 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
         AccessibilityService.setWindowFrame(window, frame: targetRect)
     }
 
-    // MARK: - AXObserver Setup
+    // MARK: - AXObserver
 
     @objc private func appLaunched(_ notification: Notification) {
         guard isEnforcing,
@@ -88,25 +102,20 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
     }
 
     private func observeApp(pid: pid_t) {
-        // Skip our own app and already-observed apps
         guard pid != ProcessInfo.processInfo.processIdentifier,
               observers[pid] == nil else { return }
 
-        // Pass self as refcon so the C callback can reach us
         let refcon = Unmanaged.passUnretained(self).toOpaque()
 
         var observer: AXObserver?
-        let result = AXObserverCreate(pid, Self.axObserverCallback, &observer)
+        let result = AXObserverCreate(pid, zoneEnforcerAXCallback, &observer)
         guard result == .success, let observer = observer else { return }
 
         let appElement = AccessibilityService.applicationElement(pid: pid)
 
-        // Watch for window resize (fires on maximize/zoom), move, and creation
         for notif in [
             kAXWindowResizedNotification,
             kAXWindowMovedNotification,
-            kAXWindowCreatedNotification,
-            kAXFocusedWindowChangedNotification,
         ] as [CFString] {
             AXObserverAddNotification(observer, appElement, notif, refcon)
         }
@@ -120,115 +129,159 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
         observers[pid] = observer
     }
 
-    // MARK: - AX Callback
+    /// Called from the free function AX callback
+    func handleAXNotification(element: AXUIElement, notification: String) {
+        guard isEnforcing else { return }
 
-    /// The C function pointer for AXObserverCreate. Defined as a static property
-    /// returning the function reference so it can be passed to the C API.
-    static var axObserverCallback: AXObserverCallback {
-        return { _, element, notification, refcon in
-            guard let refcon = refcon else { return }
-            let enforcer = Unmanaged<AccessibilityZoneEnforcer>.fromOpaque(refcon).takeUnretainedValue()
-            let notifString = notification as String
-
-            if notifString == kAXWindowResizedNotification as String {
-                enforcer.handleWindowResized(element)
-            }
+        if notification == kAXWindowResizedNotification as String {
+            checkAndConstrainWindow(element)
         }
     }
 
-    /// When a window is resized, check if it just maximized (filled the visible screen).
-    /// If so, constrain it to the zone it was in before the resize.
-    private func handleWindowResized(_ window: AXUIElement) {
+    // MARK: - Window Polling & Constraining
+
+    /// Poll all visible windows. Detects maximize and applies sticky edges.
+    private func pollAllWindows() {
         guard isEnforcing, let screen = currentScreen else { return }
 
-        guard !AccessibilityService.isWindowFullScreen(window),
-              !AccessibilityService.isWindowMinimized(window) else { return }
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
+            guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { continue }
 
-        guard let currentFrame = AccessibilityService.getWindowFrame(window) else { return }
+            let appElement = AccessibilityService.applicationElement(pid: app.processIdentifier)
+            let windows = AccessibilityService.getWindows(for: appElement)
 
-        let visibleFrame = screen.visibleFrame
-        let windowKey = windowIdentifier(window)
-        let previousFrame = lastWindowFrames[windowKey]
+            for window in windows {
+                guard !AccessibilityService.isWindowMinimized(window),
+                      !AccessibilityService.isWindowFullScreen(window) else { continue }
 
-        // Check if the window now fills the visible screen (maximize/zoom happened)
-        let fillsWidth = abs(currentFrame.width - visibleFrame.width) < 20
-        let fillsHeight = abs(currentFrame.height - visibleFrame.height) < 20
-        let isMaximized = fillsWidth && fillsHeight
+                guard let currentFrame = AccessibilityService.getWindowFrame(window) else { continue }
 
-        if isMaximized {
-            // Find which zone the window was in before maximizing
-            let referenceFrame = previousFrame ?? currentFrame
-            if let zone = findContainingZone(for: referenceFrame, on: screen) {
-                let zoneRect = zoneVisibleRect(zone, on: screen)
+                let windowKey = stableWindowKey(window, pid: app.processIdentifier)
+                let previousFrame = lastWindowFrames[windowKey]
 
-                // Only constrain if the zone is smaller than the full screen
-                // (i.e., there are actually multiple zones)
-                if currentZones.count > 1 {
-                    // Small delay to let the system animation finish, then override
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        AccessibilityService.setWindowFrame(window, frame: zoneRect)
-                        self.lastWindowFrames[windowKey] = zoneRect
-                    }
-                    return
+                // Detect maximize: window fills the visible screen
+                if didJustMaximize(previous: previousFrame, current: currentFrame, screen: screen) {
+                    constrainToZone(window: window, windowKey: windowKey, previousFrame: previousFrame, currentFrame: currentFrame, screen: screen)
+                    continue
                 }
+
+                // Sticky edges
+                if stickyEdgesEnabled, let prev = previousFrame {
+                    if applyStickyEdge(window: window, windowKey: windowKey, previous: prev, current: currentFrame, screen: screen) {
+                        continue
+                    }
+                }
+
+                lastWindowFrames[windowKey] = currentFrame
             }
         }
-
-        lastWindowFrames[windowKey] = currentFrame
     }
 
-    // MARK: - Sticky Edges (Poll-based)
+    /// Called from AX observer when a window is resized
+    private func checkAndConstrainWindow(_ window: AXUIElement) {
+        guard isEnforcing, let screen = currentScreen else { return }
+        guard !AccessibilityService.isWindowFullScreen(window),
+              !AccessibilityService.isWindowMinimized(window) else { return }
+        guard let currentFrame = AccessibilityService.getWindowFrame(window) else { return }
 
-    /// Lightweight poll for sticky edge enforcement.
-    /// Only processes the frontmost app's focused window to minimize overhead.
-    private func pollForStickyEdges() {
-        guard isEnforcing, stickyEdgesEnabled, let screen = currentScreen else { return }
-        guard let frontApp = NSWorkspace.shared.frontmostApplication,
-              frontApp.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        // Try to find PID for this window's app
+        var pid: pid_t = 0
+        AXUIElementGetPid(window, &pid)
+        let windowKey = stableWindowKey(window, pid: pid)
+        let previousFrame = lastWindowFrames[windowKey]
 
-        let appElement = AccessibilityService.applicationElement(pid: frontApp.processIdentifier)
-        guard let window = AccessibilityService.getFocusedWindow(for: appElement),
-              let currentFrame = AccessibilityService.getWindowFrame(window) else { return }
+        if didJustMaximize(previous: previousFrame, current: currentFrame, screen: screen) {
+            constrainToZone(window: window, windowKey: windowKey, previousFrame: previousFrame, currentFrame: currentFrame, screen: screen)
+        } else {
+            lastWindowFrames[windowKey] = currentFrame
+        }
+    }
 
-        let windowKey = windowIdentifier(window)
-        guard let previousFrame = lastWindowFrames[windowKey] else {
+    // MARK: - Maximize Detection
+
+    private func didJustMaximize(previous: CGRect?, current: CGRect, screen: NSScreen) -> Bool {
+        let visible = screen.visibleFrame
+
+        // Does the window now fill the visible screen?
+        let fillsWidth = abs(current.width - visible.width) < 30
+        let fillsHeight = abs(current.height - visible.height) < 30
+        guard fillsWidth && fillsHeight else { return false }
+
+        // If we have a previous frame, was it smaller?
+        if let prev = previous {
+            let wasSmaller = prev.width < visible.width * 0.85 || prev.height < visible.height * 0.85
+            return wasSmaller
+        }
+
+        // No previous frame — still treat as maximize if it fills the screen
+        // (first time seeing this window and it's already maximized)
+        return true
+    }
+
+    private func constrainToZone(window: AXUIElement, windowKey: String, previousFrame: CGRect?, currentFrame: CGRect, screen: NSScreen) {
+        guard currentZones.count > 1 else {
             lastWindowFrames[windowKey] = currentFrame
             return
         }
 
-        // Only apply when dragging (position changed, size didn't)
-        let sizeChanged = abs(currentFrame.width - previousFrame.width) > 2 ||
-                          abs(currentFrame.height - previousFrame.height) > 2
-        guard !sizeChanged else {
+        // Use previous position to determine which zone, or current if no previous
+        let referenceFrame = previousFrame ?? currentFrame
+        guard let zone = findContainingZone(for: referenceFrame, on: screen) else {
             lastWindowFrames[windowKey] = currentFrame
             return
         }
 
-        // Check if crossing a zone boundary
-        let prevZone = findContainingZone(for: previousFrame, on: screen)
-        let currZone = findContainingZone(for: currentFrame, on: screen)
+        let zoneRect = zoneVisibleRect(zone, on: screen)
 
-        if prevZone?.id != currZone?.id, let prevZone = prevZone {
-            let prevZoneRect = zoneVisibleRect(prevZone, on: screen)
+        print("ZoneMaster: Constraining window to \(zone.name) — \(zoneRect)")
 
-            if let adjusted = stickyEdgeAdjustment(
-                previous: previousFrame,
-                current: currentFrame,
-                zoneBounds: prevZoneRect
-            ) {
-                AccessibilityService.setWindowPosition(window, position: adjusted.origin)
-                lastWindowFrames[windowKey] = adjusted
-                return
-            }
+        // Delay slightly to let macOS finish its animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            AccessibilityService.setWindowFrame(window, frame: zoneRect)
+            self?.lastWindowFrames[windowKey] = zoneRect
+        }
+    }
+
+    // MARK: - Sticky Edges
+
+    private func applyStickyEdge(window: AXUIElement, windowKey: String, previous: CGRect, current: CGRect, screen: NSScreen) -> Bool {
+        // Only when dragging (position changed, size didn't)
+        let sizeChanged = abs(current.width - previous.width) > 2 || abs(current.height - previous.height) > 2
+        guard !sizeChanged else { return false }
+
+        let prevZone = findContainingZone(for: previous, on: screen)
+        let currZone = findContainingZone(for: current, on: screen)
+
+        guard prevZone?.id != currZone?.id, let prevZone = prevZone else { return false }
+
+        let prevZoneRect = zoneVisibleRect(prevZone, on: screen)
+        let dx = current.origin.x - previous.origin.x
+        let dy = current.origin.y - previous.origin.y
+
+        var adjusted: CGRect?
+
+        if dx > 0 && current.maxX > prevZoneRect.maxX && current.maxX - prevZoneRect.maxX < stickyEdgeThreshold {
+            adjusted = current; adjusted!.origin.x = prevZoneRect.maxX - current.width
+        } else if dx < 0 && current.origin.x < prevZoneRect.origin.x && prevZoneRect.origin.x - current.origin.x < stickyEdgeThreshold {
+            adjusted = current; adjusted!.origin.x = prevZoneRect.origin.x
+        } else if dy < 0 && current.origin.y < prevZoneRect.origin.y && prevZoneRect.origin.y - current.origin.y < stickyEdgeThreshold {
+            adjusted = current; adjusted!.origin.y = prevZoneRect.origin.y
+        } else if dy > 0 && current.maxY > prevZoneRect.maxY && current.maxY - prevZoneRect.maxY < stickyEdgeThreshold {
+            adjusted = current; adjusted!.origin.y = prevZoneRect.maxY - current.height
         }
 
-        lastWindowFrames[windowKey] = currentFrame
+        if let adjusted = adjusted {
+            AccessibilityService.setWindowPosition(window, position: adjusted.origin)
+            lastWindowFrames[windowKey] = adjusted
+            return true
+        }
+
+        return false
     }
 
     // MARK: - Zone Geometry
 
-    /// Convert a zone's normalized rect to screen coordinates using visibleFrame.
-    /// This ensures windows don't overlap the menu bar or Dock.
+    /// Zone rect in visibleFrame coordinates (for window placement)
     private func zoneVisibleRect(_ zone: Zone, on screen: NSScreen) -> CGRect {
         let visible = screen.visibleFrame
         return CGRect(
@@ -239,55 +292,22 @@ final class AccessibilityZoneEnforcer: ZoneEnforcerProtocol {
         )
     }
 
-    /// Find which zone contains the center of a window frame.
-    /// Uses full screen frame for hit-testing (zones tile the full screen).
+    /// Find which zone contains the center of a window.
+    /// Uses visibleFrame-based zone rects so coordinates match window positions.
     private func findContainingZone(for windowFrame: CGRect, on screen: NSScreen) -> Zone? {
         let windowCenter = CGPoint(x: windowFrame.midX, y: windowFrame.midY)
         return currentZones.first { zone in
-            zone.screenRect(for: screen.frame).contains(windowCenter)
+            zoneVisibleRect(zone, on: screen).contains(windowCenter)
         }
-    }
-
-    // MARK: - Sticky Edge Math
-
-    private func stickyEdgeAdjustment(previous: CGRect, current: CGRect, zoneBounds: CGRect) -> CGRect? {
-        let dx = current.origin.x - previous.origin.x
-        let dy = current.origin.y - previous.origin.y
-
-        // Right edge
-        if dx > 0 && current.maxX > zoneBounds.maxX && current.maxX - zoneBounds.maxX < stickyEdgeThreshold {
-            var adjusted = current
-            adjusted.origin.x = zoneBounds.maxX - current.width
-            return adjusted
-        }
-        // Left edge
-        if dx < 0 && current.origin.x < zoneBounds.origin.x && zoneBounds.origin.x - current.origin.x < stickyEdgeThreshold {
-            var adjusted = current
-            adjusted.origin.x = zoneBounds.origin.x
-            return adjusted
-        }
-        // Bottom edge (macOS: lower y = bottom)
-        if dy < 0 && current.origin.y < zoneBounds.origin.y && zoneBounds.origin.y - current.origin.y < stickyEdgeThreshold {
-            var adjusted = current
-            adjusted.origin.y = zoneBounds.origin.y
-            return adjusted
-        }
-        // Top edge
-        if dy > 0 && current.maxY > zoneBounds.maxY && current.maxY - zoneBounds.maxY < stickyEdgeThreshold {
-            var adjusted = current
-            adjusted.origin.y = zoneBounds.maxY - current.height
-            return adjusted
-        }
-
-        return nil
     }
 
     // MARK: - Window Identity
 
-    /// Generate a stable identifier for a window using its memory address.
-    /// More reliable than title-based identification.
-    private func windowIdentifier(_ window: AXUIElement) -> String {
-        let ptr = Unmanaged.passUnretained(window).toOpaque()
-        return "\(ptr)"
+    /// Stable window identifier using PID + title.
+    /// AXUIElement pointers are NOT stable across calls — each AX query
+    /// returns a new object. PID + title is imperfect but reliable enough.
+    private func stableWindowKey(_ window: AXUIElement, pid: pid_t) -> String {
+        let title = AccessibilityService.getWindowTitle(window) ?? "untitled"
+        return "\(pid)|\(title)"
     }
 }
